@@ -23,9 +23,11 @@ services:
       PMA_PORT: 3306
       PMA_ARBITRARY: 1
     restart: always
+    ports:
+      - 8081:80
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pma.rule=Host(`pma.sumanta.space`) && Path(`/pma`)"
+      - "traefik.http.routers.pma.rule=Host(`your-domain.com`) && Path(`/pma`)"
       - "traefik.http.services.pma.loadbalancer.server.port=80"
 volumes:
   dbdata:
