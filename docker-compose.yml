@@ -1,33 +1,47 @@
 version: "3"
 
 services:
-  db:
-    image: mysql:5.7
-    container_name: db
-    environment:
-      MYSQL_ROOT_PASSWORD: my_secret_password
-      MYSQL_DATABASE: app_db
-      MYSQL_USER: db_user
-      MYSQL_PASSWORD: db_user_pass
-    ports:
-      - "6033:3306"
-    volumes:
-      - dbdata:/var/lib/mysql
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: pma
-    links:
-      - db
-    environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-      PMA_ARBITRARY: 1
+  web:
+    image: php:7.4-apache
     restart: always
-    ports:
-      - 8081:80
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pma.rule=Host(`your-domain.com`) && Path(`/pma`)"
-      - "traefik.http.services.pma.loadbalancer.server.port=80"
-volumes:
-  dbdata:
+      - "traefik.http.routers.phpapp.rule=Host(`yourdomain.com`)" # Replace with your domain
+      - "traefik.http.services.phpapp.loadbalancer.server.port=80"
+    volumes:
+      - ./src:/var/www/html
+    networks:
+      - web
+
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=your_password
+      - MYSQL_DATABASE=your_database
+      - MYSQL_USER=your_username
+      - MYSQL_PASSWORD=your_password
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    networks:
+      - web
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.yourdomain.com`)" # Replace with your domain
+      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=your_username
+      - PMA_PASSWORD=your_password
+    depends_on:
+      - db
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
