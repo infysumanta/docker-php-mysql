@@ -1,47 +1,69 @@
 version: "3"
 
 services:
-  web:
-    image: php:7.4-apache
-    restart: always
+  traefik:
+    image: traefik:v2.4
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - 80:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  nginx:
+    image: nginx:latest
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.phpapp.rule=Host(`phpweb.sumanta.space`)" # Replace with your domain
-      - "traefik.http.services.phpapp.loadbalancer.server.port=80"
+      - "traefik.http.routers.nginx.rule=Host(`web.sumanta.space`)"
+      - "traefik.http.routers.nginx.entrypoints=web"
+      - "traefik.http.services.nginx.loadbalancer.server.port=80"
     volumes:
-      - ./src:/var/www/html
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/html:/var/www/html
     networks:
-      - web
+      - traefik_network
 
-  db:
-    image: mysql:5.7
-    restart: always
-    environment:
-      - MYSQL_ROOT_PASSWORD=your_password
-      - MYSQL_DATABASE=your_database
-      - MYSQL_USER=your_username
-      - MYSQL_PASSWORD=your_password
+  php:
+    image: php:latest
+    labels:
+      - "traefik.enable=false" # Disable Traefik for PHP service
     volumes:
-      - ./data/mysql:/var/lib/mysql
+      - ./php:/var/www/html
     networks:
-      - web
+      - traefik_network
+
+  mysql:
+    image: mysql:latest
+    labels:
+      - "traefik.enable=false" # Disable Traefik for MySQL service
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: your-root-password
+      MYSQL_DATABASE: your-database-name
+      MYSQL_USER: your-username
+      MYSQL_PASSWORD: your-password
+    volumes:
+      - ./mysql:/var/lib/mysql
+    networks:
+      - traefik_network
 
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    restart: always
+    image: phpmyadmin:latest
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.sumanta.space`)" # Replace with your domain
+      - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.sumanta.space`)"
+      - "traefik.http.routers.phpmyadmin.entrypoints=web"
       - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
     environment:
-      - PMA_HOST=db
-      - PMA_USER=your_username
-      - PMA_PASSWORD=your_password
-    depends_on:
-      - db
+      PMA_HOST: mysql
+      MYSQL_ROOT_PASSWORD: your-root-password
     networks:
-      - web
+      - traefik_network
 
 networks:
-  web:
+  traefik_network:
     external: true
